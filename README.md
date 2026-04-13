@@ -115,8 +115,43 @@ docker pull ghcr.io/dueño/repo-en-minusculas:base
 
 La ruta exacta y las etiquetas aparecen en la página del paquete en GitHub. Los nombres de imagen en GHCR suelen ir en **minúsculas**.
 
+### Secretos en GitHub Actions
+
+Para usar un **PAT u otro valor sensible** dentro de un workflow (por ejemplo si sustituyes el `GITHUB_TOKEN` por un token con más alcance, o llamas a APIs externas):
+
+1. En el repositorio de GitHub: **Settings** → **Secrets and variables** → **Actions**.
+2. Pestaña **Secrets** → **New repository secret**: elige un nombre en `MAYÚSCULAS_SNAKE_CASE` (ej. `GHCR_TOKEN` o `REGISTRY_TOKEN`) y pega el valor (el PAT). Guárdalo; GitHub no lo mostrará de nuevo.
+3. En el YAML del workflow, úsalo solo como **`${{ secrets.NOMBRE_DEL_SECRETO }}`** (nunca escribas el token en claro en el repositorio).
+
+En la misma pantalla, pestaña **Variables** → **New repository variable**: para datos no confidenciales (rutas, nombres, flags). En el workflow: **`${{ vars.NOMBRE }}`**.
+
+Documentación: [Using secrets in GitHub Actions](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions).
+
+Este proyecto, tal cual está, **no exige** un secreto extra para GHCR en Actions: basta el **`GITHUB_TOKEN`** y los `permissions` del YAML.
+
+### Variables locales en tu máquina
+
+Para no dejar el PAT en el historial del shell ni en el repo:
+
+- **Solo esta terminal:**
+
+  ```bash
+  export GHCR_TOKEN="ghp_...."
+  echo "$GHCR_TOKEN" | docker login ghcr.io -u TU_USUARIO_GITHUB --password-stdin
+  ```
+
+- **Persistente** (bash): añade el `export` en `~/.bashrc` o `~/.profile`, o guarda el token en un archivo **fuera del repo** y haz `source` cuando lo necesites.
+
+- **Archivo `.env`**: útil con otras herramientas; añade **`.env`** a **`.gitignore`** y no lo subas a git.
+
+- Tras un `docker login` correcto, Docker puede guardar credenciales en el almacén del sistema; no tendrás que exportar el token en cada sesión hasta que caduque o ejecutes `docker logout ghcr.io`.
+
 ### Si `docker pull` falla
 
 - Comprueba **visibilidad** del paquete (público/privado) y que el token tenga **`read:packages`**.
 - Verifica que la etiqueta (**`:base`**, `latest`, etc.) exista.
-- No subas el PAT al repositorio; usa secretos o variables locales.
+- Confirma que el **usuario** de `docker login` y el **token** tienen acceso a ese paquete.
+
+## Licencia
+
+Si añades una licencia al proyecto, descríbela aquí.
