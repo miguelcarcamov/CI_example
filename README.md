@@ -120,7 +120,3 @@ La ruta exacta y las etiquetas aparecen en la página del paquete en GitHub. Los
 - Comprueba **visibilidad** del paquete (público/privado) y que el token tenga **`read:packages`**.
 - Verifica que la etiqueta (**`:base`**, `latest`, etc.) exista.
 - No subas el PAT al repositorio; usa secretos o variables locales.
-
-## Licencia
-
-Si añades una licencia al proyecto, descríbela aquí.
