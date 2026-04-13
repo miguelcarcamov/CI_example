@@ -1,0 +1,52 @@
+# 2/2 — On every code change: configure, build, and run tests inside the published
+# `:base` image from GHCR (same ref as build-base-container.yml).
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  BUILD_DIR: build
+
+jobs:
+  image-ref:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.set.outputs.image }}
+    steps:
+      - id: set
+        run: |
+          repo_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          echo "image=ghcr.io/${repo_lc}:base" >> "$GITHUB_OUTPUT"
+
+  build-and-test:
+    needs: image-ref
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.image-ref.outputs.image }}
+      credentials:
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: |
+          cmake -B ${{ env.BUILD_DIR }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel
+
+      - name: Test
+        run: ctest --test-dir ${{ env.BUILD_DIR }} --output-on-failure

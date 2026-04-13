@@ -1,0 +1,10 @@
+# Conda environment for local development and reproducible toolchains.
+# GoogleTest is still obtained via CMake FetchContent (same as CI/Docker).
+name: ci-example-cpp
+channels:
+  - conda-forge
+dependencies:
+  - cmake>=3.16
+  - make
+  - cxx-compiler
+  - git

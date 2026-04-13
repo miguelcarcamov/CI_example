@@ -1,0 +1,70 @@
+# 1/2 — When the Dockerfile changes: publish the CI toolchain image to GHCR, then
+# compile the project inside that image (smoke build, no tests).
+name: build-base-container
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - Dockerfile
+  pull_request:
+    branches: [main, master]
+    paths:
+      - Dockerfile
+
+env:
+  REGISTRY: ghcr.io
+  BUILD_DIR: build
+
+jobs:
+  build-image-and-compile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: GHCR image name (paths must be lowercase)
+        run: |
+          repo_lc=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE=ghcr.io/${repo_lc}:base" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push base image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.IMAGE }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}
+          cache-to: type=inline
+          platforms: linux/amd64
+
+      # After a merge/push the image is in GHCR; on a PR it was only built by Buildx.
+      - name: Compile project in container (no tests)
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            docker pull "${IMAGE}"
+            IMG="${IMAGE}"
+          else
+            docker build -t ci-base-local -f Dockerfile .
+            IMG=ci-base-local
+          fi
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            "${IMG}" \
+            bash -eux -c "cmake -B ${{ env.BUILD_DIR }} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON && cmake --build ${{ env.BUILD_DIR }} --parallel"
